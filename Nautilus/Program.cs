@@ -23,6 +23,14 @@ namespace Nautilus
         static void Main(string[] args)
         {
             BassNet.Registration(user + "@" + domain + ".com", bKey);
+
+            // headless helper for BackstageHero: no UI, no single-instance warning
+            if (args.Length > 0 && args[0].Equals(BackstageHeroCli.Switch, StringComparison.OrdinalIgnoreCase))
+            {
+                Environment.Exit(BackstageHeroCli.Run(args));
+                return;
+            }
+
             bool result;
             var mutex = new System.Threading.Mutex(true, "UniqueAppId", out result);
             if (!result)
