@@ -6,6 +6,19 @@ Developed by Nemo
 
 FEATURES / CHANGE LOG:
 
+v5.6.6
+
+CON EXPLORER
+- Added search bar to the Contents tab, with an extension filter built from the files found in the package
+- Search is now instant even with many packages open (file names are indexed in memory)
+- Selecting multiple CON/LIVE files now opens them all in one window, with every package listed in the contents tree (Information tab is disabled in this mode)
+- Added checkboxes to the contents list; checked files stay listed across different searches
+- Added right-click Copy so files can be pasted anywhere in Windows Explorer (works across multiple packages and searches)
+- Window is now resizable
+
+COMMAND LINE
+- Added headless -backstagehero command for BackstageHero: "list <con> <out.json>" lists the songs in a CON, "extract <con> <songid> <out.mogg>" saves the decrypted mogg
+
 v5.6.5
 
 ULTRASTAR CONVERTER BETA (NEW FEATURE!)
