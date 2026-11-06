@@ -81,10 +81,35 @@ namespace Nautilus
             return parser.Songs;
         }
 
-        private static string MoggPath(SongData song)
+        /// <summary>
+        /// Path of the song's mogg inside the package, or null if it isn't there. Some DTAs
+        /// (e.g. the Rock Band 1 export, written with quoted keys) come out of the parser with
+        /// extra quotes around the path, so the songs/... part is pulled out and the usual
+        /// songs/&lt;id&gt;/&lt;id&gt;.mogg layout is tried as well.
+        /// </summary>
+        private static string MoggPath(STFSPackage pkg, SongData song)
         {
-            if (!string.IsNullOrWhiteSpace(song.FilePath)) return song.FilePath.Trim().TrimStart('/') + ".mogg";
-            return "songs/" + song.InternalName + "/" + song.InternalName + ".mogg";
+            var candidates = new List<string>();
+            if (!string.IsNullOrWhiteSpace(song.FilePath))
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(song.FilePath, @"songs/[^'""\s)]+");
+                candidates.Add(m.Success ? m.Value : song.FilePath.Trim().Trim('\'', '"').TrimStart('/'));
+            }
+            foreach (var id in new[] { Clean(song.ShortName), Clean(song.InternalName) })
+            {
+                if (!string.IsNullOrWhiteSpace(id)) candidates.Add("songs/" + id + "/" + id);
+            }
+            foreach (var path in candidates.Distinct())
+            {
+                var mogg = path.EndsWith(".mogg", StringComparison.OrdinalIgnoreCase) ? path : path + ".mogg";
+                if (pkg.GetFile(mogg) != null) return mogg;
+            }
+            return null;
+        }
+
+        private static string Clean(string value)
+        {
+            return value?.Trim().Trim('\'', '"').Trim();
         }
 
         private static int List(string con, string outJson)
@@ -97,14 +122,14 @@ namespace Nautilus
                 var first = true;
                 foreach (var s in songs)
                 {
-                    if (string.IsNullOrWhiteSpace(s.ShortName)) continue;
-                    var mogg = MoggPath(s);
-                    if (pkg.GetFile(mogg) == null) continue; // no audio, nothing to sync against
+                    if (string.IsNullOrWhiteSpace(Clean(s.ShortName))) continue;
+                    var mogg = MoggPath(pkg, s);
+                    if (mogg == null) continue; // no audio here, nothing to sync against
                     if (!first) sb.Append(',');
                     first = false;
-                    sb.Append("{\"id\":").Append(Json(s.ShortName))
-                      .Append(",\"name\":").Append(Json(s.Name))
-                      .Append(",\"artist\":").Append(Json(s.Artist))
+                    sb.Append("{\"id\":").Append(Json(Clean(s.ShortName)))
+                      .Append(",\"name\":").Append(Json(Clean(s.Name)))
+                      .Append(",\"artist\":").Append(Json(Clean(s.Artist)))
                       .Append(",\"path\":").Append(Json(mogg))
                       .Append('}');
                 }
@@ -124,11 +149,11 @@ namespace Nautilus
             byte[] data;
             try
             {
-                var song = ReadSongs(pkg).FirstOrDefault(s => string.Equals(s.ShortName, songId, StringComparison.OrdinalIgnoreCase));
+                var song = ReadSongs(pkg).FirstOrDefault(s => string.Equals(Clean(s.ShortName), songId, StringComparison.OrdinalIgnoreCase));
                 if (song == null) return Fail(outMogg, "song not found in package: " + songId);
-                var entry = pkg.GetFile(MoggPath(song));
-                if (entry == null) return Fail(outMogg, "mogg not found: " + MoggPath(song));
-                data = entry.Extract();
+                var mogg = MoggPath(pkg, song);
+                if (mogg == null) return Fail(outMogg, "mogg not found for " + songId);
+                data = pkg.GetFile(mogg).Extract();
             }
             finally
             {
