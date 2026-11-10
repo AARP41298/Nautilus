@@ -13,7 +13,8 @@ namespace Nautilus
     /// modifying them. Runs inside Nautilus.exe so mogg decryption works exactly as in the app.
     ///
     ///   Nautilus.exe -backstagehero list    &lt;con&gt; &lt;out.json&gt;
-    ///       Writes [{"id","name","artist","path"}...] for every song in songs.dta.
+    ///       Writes [{"id","name","artist","game_origin","path"}...] for every song in songs.dta.
+    ///       game_origin is the songs.dta value (rb3dlc, ugc_plus, ...), "" if missing.
     ///   Nautilus.exe -backstagehero extract &lt;con&gt; &lt;songid&gt; &lt;out.mogg&gt;
     ///       Writes that song's mogg, decrypted (still has its mogg header).
     ///
@@ -130,6 +131,7 @@ namespace Nautilus
                     sb.Append("{\"id\":").Append(Json(Clean(s.ShortName)))
                       .Append(",\"name\":").Append(Json(Clean(s.Name)))
                       .Append(",\"artist\":").Append(Json(Clean(s.Artist)))
+                      .Append(",\"game_origin\":").Append(Json(Clean(s.Source) ?? ""))
                       .Append(",\"path\":").Append(Json(mogg))
                       .Append('}');
                 }
