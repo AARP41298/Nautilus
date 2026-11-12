@@ -19,6 +19,10 @@ CON EXPLORER
 COMMAND LINE
 - Added headless -backstagehero command for BackstageHero: "list <con> <out.json>" lists the songs in a CON, "extract <con> <songid> <out.mogg>" saves the decrypted mogg
 - -backstagehero list now includes each song's game_origin (rb3dlc, ugc_plus, ...) and handles songs.dta files with quoted keys
+- -backstagehero no longer shows message boxes on songs.dta errors, they go to the console so the caller never hangs
+
+DTA PARSER
+- Fixed The Beatles: Rock Band songs: name, artist and audio tracks written on one line ('name' "...") were read from the wrong line, and the DLC's (format 0) (artist "...") line kept the (format 0) part
 
 v5.6.5
 
