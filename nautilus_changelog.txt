@@ -18,6 +18,7 @@ CON EXPLORER
 
 COMMAND LINE
 - Added headless -backstagehero command for BackstageHero: "list <con> <out.json>" lists the songs in a CON, "extract <con> <songid> <out.mogg>" saves the decrypted mogg
+- -backstagehero list now includes each song's game_origin (rb3dlc, ugc_plus, ...) and handles songs.dta files with quoted keys
 
 v5.6.5
 
