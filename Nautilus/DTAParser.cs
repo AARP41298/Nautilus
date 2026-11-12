@@ -12,6 +12,11 @@ namespace Nautilus
 {
     public class DTAParser
     {
+        /// <summary>
+        /// Command-line use (-backstagehero): no message boxes, they would block
+        /// the caller. Parse errors go to Console.Error instead.
+        /// </summary>
+        public static bool Quiet;
         private NemoTools Tools;
         public List<SongData> Songs;
         private int Diff1;
@@ -103,7 +108,8 @@ namespace Nautilus
             }
             catch (Exception ex)
             {
-                MessageBox.Show("ERROR: " + ex.Message);
+                if (Quiet) Console.Error.WriteLine("ERROR: " + ex.Message);
+                else MessageBox.Show("ERROR: " + ex.Message);
                 return false;
             }
         }
@@ -647,16 +653,20 @@ namespace Nautilus
                                 }
                                 else
                                 {
-                                    song.Name = GetSongName(line);
+                                    song.Name = GetSongName(FieldText(line, "(name"));
                                 }
                             }
                             else if (line.Contains("'name'") && !line.Contains("songs/"))
                             {
-                                z++;
-                                line = entry[z];
+                                //('name' "Song") on one line (The Beatles: Rock Band) or the value on the next line
+                                if (!HasValueAfter(line, "'name'"))
+                                {
+                                    z++;
+                                    line = entry[z];
+                                }
                                 if (!(line.Contains("songs/")))
                                 {
-                                    song.Name = GetSongName(line);
+                                    song.Name = GetSongName(FieldText(line, "'name'"));
                                 }
                                 else if (!line.Contains("_short"))
                                 {
@@ -680,13 +690,17 @@ namespace Nautilus
                                     z++;
                                     line = entry[z];
                                 }
-                                song.Artist = GetArtistName(line);                                
+                                //"(format 0) (artist "X")": only the artist's own part of the line
+                                song.Artist = GetArtistName(FieldText(line, "(artist"));
                             }
                             else if (line.Contains("'artist'"))
                             {
-                                z++;
-                                line = entry[z];
-                                song.Artist = GetArtistName(line);
+                                if (!HasValueAfter(line, "'artist'"))
+                                {
+                                    z++;
+                                    line = entry[z];
+                                }
+                                song.Artist = GetArtistName(FieldText(line, "'artist'"));
                             }
                             else if (line.Contains("(master") | line.Contains("('master"))
                             {
@@ -818,8 +832,11 @@ namespace Nautilus
                                     }
                                     else if (line.ToLowerInvariant().Contains("drum") && !didDrums)
                                     {
-                                        z++;
-                                        line = entry[z];
+                                        if (!line.Contains(")")) //('drum' (0 1)) on one line (The Beatles: Rock Band)
+                                        {
+                                            z++;
+                                            line = entry[z];
+                                        }
                                         song.ChannelsDrums = getChannels(line, "drum");
                                         song.ChannelsDrumsStart = getChannelsStart(line, "drum");
                                         didDrums = true;
@@ -835,8 +852,11 @@ namespace Nautilus
                                 }
                                 if (line.Contains("'pans'") && !didPans)
                                 {
-                                    z++;
-                                    line = entry[z];
+                                    if (!line.Contains(")")) //('x' (values)) on one line (The Beatles: Rock Band)
+                                    {
+                                        z++;
+                                        line = entry[z];
+                                    }
                                     song.PanningValues = line.Replace("(", "").Replace(")", "").Replace("'", "").Replace("pans", "").Replace("\t"," ").Trim();
                                     didPans = true;
                                 }
@@ -861,8 +881,11 @@ namespace Nautilus
                             }
                             else if (line.Contains("'vols'") && !didVols)
                             {
-                                z++;
-                                line = entry[z];
+                                if (!line.Contains(")")) //('x' (values)) on one line (The Beatles: Rock Band)
+                                {
+                                    z++;
+                                    line = entry[z];
+                                }
 
                                 line = line.Replace("(", "").Replace(")", "").Replace("'", "").Replace("vols", "").Replace("\t", " ").Trim();
                                 line = RemoveDTAComments(line);
@@ -938,8 +961,11 @@ namespace Nautilus
                             }
                             else if (line.Contains("'pans'") && !didPans)
                             {
-                                z++;
-                                line = entry[z];
+                                if (!line.Contains(")")) //('x' (values)) on one line (The Beatles: Rock Band)
+                                {
+                                    z++;
+                                    line = entry[z];
+                                }
                                 song.PanningValues = line.Replace("(", "").Replace(")", "").Replace("'", "").Replace("pans", "").Replace("\t", " ").Trim();
                                 didPans = true;
                             }
@@ -1011,8 +1037,11 @@ namespace Nautilus
                             }
                             else if (line.Contains("'cores'") && !didCores)
                             {
-                                z++;
-                                line = entry[z];
+                                if (!line.Contains(")")) //('x' (values)) on one line (The Beatles: Rock Band)
+                                {
+                                    z++;
+                                    line = entry[z];
+                                }
                                 song.ChannelsTotal = GetAudioChannels(line);
                                 didCores = true;
                             }
@@ -1324,7 +1353,11 @@ namespace Nautilus
                         }
                         catch (Exception ex)
                         {
-                            if (!string.IsNullOrWhiteSpace(song.Artist) && !string.IsNullOrWhiteSpace(song.Name))
+                            if (Quiet)
+                            {
+                                Console.Error.WriteLine("DTA parse error in '" + song.ShortName + "' line " + z + ": " + ex.Message);
+                            }
+                            else if (!string.IsNullOrWhiteSpace(song.Artist) && !string.IsNullOrWhiteSpace(song.Name))
                             {
                                 MessageBox.Show("There was an error loading song\n'" + song.Artist + " - " + song.Name +
                                     "'\nThe error says:\'n" + ex.Message + "'\nLine: " + line + "\nLine #: " + z + "\n\nI will attempt to recover the rest " +
@@ -2080,6 +2113,31 @@ namespace Nautilus
             {
                 return -1;
             }
+        }
+
+        /// <summary>
+        /// True if a quoted value follows the field on the same line: ('name' "Song")
+        /// </summary>
+        private static bool HasValueAfter(string raw_line, string field)
+        {
+            var line = RemoveDTAComments(raw_line);
+            var i = line.IndexOf(field, StringComparison.Ordinal);
+            return i > -1 && line.IndexOf('"', i + field.Length) > -1;
+        }
+
+        /// <summary>
+        /// The quoted value of a field when it's on this line, as "Value", ignoring
+        /// other fields on the same line: (format 0) (artist "X") => "X".
+        /// Lines without the field (a value on its own line) are returned as is.
+        /// </summary>
+        private static string FieldText(string raw_line, string field)
+        {
+            var i = raw_line.IndexOf(field, StringComparison.Ordinal);
+            if (i < 0) return raw_line;
+            var q1 = raw_line.IndexOf('"', i + field.Length);
+            if (q1 < 0) return raw_line.Substring(i);
+            var q2 = raw_line.IndexOf('"', q1 + 1);
+            return q2 < 0 ? raw_line.Substring(q1) : raw_line.Substring(q1, q2 - q1 + 1);
         }
 
         private static string RemoveDTAComments(string raw_line)

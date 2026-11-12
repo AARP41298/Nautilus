@@ -28,6 +28,7 @@ namespace Nautilus
         {
             // args[0] is the switch
             string outPath = args.Length > 0 ? args[args.Length - 1] : null;
+            DTAParser.Quiet = true;   // a message box would hang BackstageHero's scan
             try
             {
                 if (args.Length == 4 && args[1].Equals("list", StringComparison.OrdinalIgnoreCase))
